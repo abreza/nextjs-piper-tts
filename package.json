@@ -7,13 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "import-ort-and-piper-files": "cpx \"node_modules/onnxruntime-web/dist/**\" public/ort && cpx \"node_modules/@mintplex-labs/piper-tts-web/dist/*.{wasm,data}\" public/piper"
+    "import-ort-and-piper-files": "cpx \"node_modules/onnxruntime-web/dist/**\" public/ort && cpx \"node_modules/@abreza/piper-tts-web/dist/*.{wasm,data}\" public/piper"
   },
   "dependencies": {
+    "@abreza/piper-tts-web": "^1.0.4",
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
-    "@mintplex-labs/piper-tts-web": "^1.0.4",
     "@mui/icons-material": "^7.1.0",
     "@mui/material": "^7.1.0",
     "next": "15.3.2",

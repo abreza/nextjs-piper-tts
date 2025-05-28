@@ -9,22 +9,39 @@ import {
   Alert,
   CircularProgress,
   Paper,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
-import { VolumeUp, Stop } from "@mui/icons-material";
+import { VolumeUp, Stop, Settings } from "@mui/icons-material";
 import { useSpeech } from "../hooks/useSpeech";
-import { PersianVoiceId } from "../types/voice";
-import { stored, remove, flush } from "@mintplex-labs/piper-tts-web";
+import { PersianVoiceId, TTSSettings } from "../types/voice";
+import { stored, remove, flush } from "@abreza/piper-tts-web";
 import VoiceSelector from "../components/VoiceSelector";
-import StreamingSettings from "../components/StreamingSettings";
+import SettingsDialog from "../components/SettingsDialog";
 import ModelManagement from "../components/ModelManagement";
 import DeleteConfirmationDialog from "../components/DeleteConfirmationDialog";
 import ProgressDisplay from "../components/ProgressDisplay";
+
+const DEFAULT_SETTINGS: TTSSettings = {
+  isStreaming: true,
+  chunkDelay: 100,
+
+  noiseScale: 0.667,
+  lengthScale: 1.0,
+  noiseWidth: 0.8,
+
+  sentencePause: 300,
+  maxChunkLength: 80,
+  enablePhrasePausing: true,
+};
 
 export default function TTSPage() {
   const [text, setText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [voice, setVoice] = useState<PersianVoiceId>("fa_IR-amir-medium");
+  const [settings, setSettings] = useState<TTSSettings>(DEFAULT_SETTINGS);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
 
   const [downloadProgress, setDownloadProgress] = useState<string | null>(null);
   const [downloadPercentage, setDownloadPercentage] = useState<number>(0);
@@ -33,8 +50,6 @@ export default function TTSPage() {
   );
   const [processingPercentage, setProcessingPercentage] = useState<number>(0);
 
-  const [isStreaming, setIsStreaming] = useState(true);
-  const [chunkDelay, setChunkDelay] = useState(100);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   const [downloadedModels, setDownloadedModels] = useState<string[]>([]);
@@ -47,7 +62,21 @@ export default function TTSPage() {
 
   useEffect(() => {
     loadDownloadedModels();
+
+    const savedSettings = localStorage.getItem("tts-settings");
+    if (savedSettings) {
+      try {
+        const parsedSettings = JSON.parse(savedSettings);
+        setSettings({ ...DEFAULT_SETTINGS, ...parsedSettings });
+      } catch (error) {
+        console.error("Failed to load settings from localStorage:", error);
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("tts-settings", JSON.stringify(settings));
+  }, [settings]);
 
   const loadDownloadedModels = async () => {
     setIsLoadingModels(true);
@@ -91,8 +120,14 @@ export default function TTSPage() {
           setProcessingPercentage(Math.round((current / total) * 100));
         },
         {
-          streaming: isStreaming,
-          chunkDelay: chunkDelay,
+          streaming: settings.isStreaming,
+          chunkDelay: settings.chunkDelay,
+          noiseScale: settings.noiseScale,
+          lengthScale: settings.lengthScale,
+          noiseWidth: settings.noiseWidth,
+          sentencePause: settings.sentencePause,
+          maxChunkLength: settings.maxChunkLength,
+          enablePhrasePausing: settings.enablePhrasePausing,
         }
       );
 
@@ -159,9 +194,13 @@ export default function TTSPage() {
 
     if (downloadProgress) return "در حال دانلود مدل...";
     if (processingProgress)
-      return isStreaming ? "در حال پخش پیوسته..." : "در حال تولید صدا...";
+      return settings.isStreaming
+        ? "در حال پخش پیوسته..."
+        : "در حال تولید صدا...";
 
-    return isStreaming ? "در حال پخش پیوسته..." : "در حال تولید صدا...";
+    return settings.isStreaming
+      ? "در حال پخش پیوسته..."
+      : "در حال تولید صدا...";
   };
 
   return (
@@ -187,12 +226,23 @@ export default function TTSPage() {
         )}
 
         <Stack spacing={3}>
-          <VoiceSelector
-            value={voice}
-            onChange={setVoice}
-            disabled={isLoading}
-            downloadedModels={downloadedModels}
-          />
+          <Stack direction="row" spacing={2} alignItems="center">
+            <VoiceSelector
+              value={voice}
+              onChange={setVoice}
+              disabled={isLoading}
+              downloadedModels={downloadedModels}
+            />
+            <Tooltip title="تنظیمات پیشرفته">
+              <IconButton
+                onClick={() => setSettingsDialogOpen(true)}
+                disabled={isLoading}
+                color="primary"
+              >
+                <Settings />
+              </IconButton>
+            </Tooltip>
+          </Stack>
 
           <TextField
             label="متن فارسی را وارد کنید"
@@ -202,14 +252,6 @@ export default function TTSPage() {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="متن خود را اینجا بنویسید..."
-            disabled={isLoading}
-          />
-
-          <StreamingSettings
-            isStreaming={isStreaming}
-            onStreamingChange={setIsStreaming}
-            chunkDelay={chunkDelay}
-            onChunkDelayChange={setChunkDelay}
             disabled={isLoading}
           />
 
@@ -287,6 +329,14 @@ export default function TTSPage() {
         isDeleting={isDeleting}
         onClose={() => setDeleteDialogOpen(false)}
         onConfirm={confirmDeleteModel}
+      />
+
+      <SettingsDialog
+        open={settingsDialogOpen}
+        onClose={() => setSettingsDialogOpen(false)}
+        settings={settings}
+        onSettingsChange={setSettings}
+        disabled={isLoading}
       />
     </Stack>
   );

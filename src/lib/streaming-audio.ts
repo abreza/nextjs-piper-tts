@@ -1,37 +1,43 @@
+export interface StreamingAudioOptions {
+  sentencePause?: number;
+}
+
 export class StreamingAudioManager {
   private audioQueue: HTMLAudioElement[] = [];
   private currentAudioIndex = 0;
   private isPlaying = false;
   private onEndedCallback?: () => void;
   private abortController?: AbortController;
+  private sentencePause: number;
 
-  constructor() {
+  constructor(options: StreamingAudioOptions = {}) {
     this.audioQueue = [];
+    this.sentencePause = options.sentencePause ?? 300;
   }
 
-  addAudioChunk(audioBlob: Blob) {
+  addAudioChunk(audioBlob: Blob, isLastChunk: boolean = false) {
     const audio = new Audio();
     audio.src = URL.createObjectURL(audioBlob);
 
     audio.onended = () => {
       URL.revokeObjectURL(audio.src);
-      this.playNext();
+      this.playNext(isLastChunk);
     };
 
     audio.onerror = () => {
       URL.revokeObjectURL(audio.src);
       console.error("Audio playback error");
-      this.playNext();
+      this.playNext(isLastChunk);
     };
 
     this.audioQueue.push(audio);
 
     if (!this.isPlaying && this.audioQueue.length === 1) {
-      this.playNext();
+      this.playNext(isLastChunk);
     }
   }
 
-  private async playNext() {
+  private async playNext(wasLastChunk: boolean = false) {
     if (this.abortController?.signal.aborted) {
       this.cleanup();
       return;
@@ -49,9 +55,24 @@ export class StreamingAudioManager {
 
     try {
       await audio.play();
+
+      if (
+        !wasLastChunk &&
+        this.sentencePause > 0 &&
+        this.currentAudioIndex < this.audioQueue.length
+      ) {
+        await new Promise((resolve) => {
+          const timeout = setTimeout(resolve, this.sentencePause);
+
+          if (this.abortController?.signal.aborted) {
+            clearTimeout(timeout);
+            resolve(undefined);
+          }
+        });
+      }
     } catch (error) {
       console.error("Failed to play audio chunk:", error);
-      this.playNext();
+      this.playNext(wasLastChunk);
     }
   }
 
@@ -68,7 +89,9 @@ export class StreamingAudioManager {
     this.audioQueue.forEach((audio) => {
       audio.pause();
       audio.src = "";
-      URL.revokeObjectURL(audio.src);
+      if (audio.src) {
+        URL.revokeObjectURL(audio.src);
+      }
     });
     this.audioQueue = [];
     this.currentAudioIndex = 0;
@@ -77,5 +100,9 @@ export class StreamingAudioManager {
 
   setAbortController(controller: AbortController) {
     this.abortController = controller;
+  }
+
+  setSentencePause(pause: number) {
+    this.sentencePause = pause;
   }
 }

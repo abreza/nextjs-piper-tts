@@ -1,4 +1,4 @@
-import { TtsSession, VoiceId, PATH_MAP } from "@mintplex-labs/piper-tts-web";
+import { TtsSession, VoiceId, PATH_MAP } from "@abreza/piper-tts-web";
 import { initializePatches } from "./monkey-patch";
 
 initializePatches();

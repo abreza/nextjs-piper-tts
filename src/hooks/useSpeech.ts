@@ -7,6 +7,12 @@ import { chunkTextByPhrases } from "../lib/text-chunker";
 export interface SpeechOptions {
   streaming?: boolean;
   chunkDelay?: number;
+  noiseScale?: number;
+  lengthScale?: number;
+  noiseWidth?: number;
+  sentencePause?: number;
+  maxChunkLength?: number;
+  enablePhrasePausing?: boolean;
 }
 
 export function useSpeech() {
@@ -25,7 +31,16 @@ export function useSpeech() {
       ) => void,
       options: SpeechOptions = {}
     ) => {
-      const { streaming = true, chunkDelay = 100 } = options;
+      const {
+        streaming = true,
+        chunkDelay = 100,
+        noiseScale = 0.667,
+        lengthScale = 1.0,
+        noiseWidth = 0.8,
+        sentencePause = 300,
+        maxChunkLength = 80,
+        enablePhrasePausing = true,
+      } = options;
 
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -38,7 +53,11 @@ export function useSpeech() {
         const tts = await getPersianTTS(voiceId, onDownloadProgress);
 
         if (!streaming) {
-          const wav = await tts.predict(text.trim());
+          const wav = await tts.predict(text.trim(), {
+            noise_scale: noiseScale,
+            length_scale: lengthScale,
+            noise_width: noiseWidth,
+          });
           if (signal.aborted) return;
 
           const audio = new Audio();
@@ -47,12 +66,19 @@ export function useSpeech() {
           audio.onerror = () => URL.revokeObjectURL(audio.src);
           await audio.play();
         } else {
-          audioManagerRef.current = new StreamingAudioManager();
+          audioManagerRef.current = new StreamingAudioManager({
+            sentencePause,
+          });
           audioManagerRef.current.setAbortController(
             abortControllerRef.current
           );
 
-          const chunks = Array.from(chunkTextByPhrases(text));
+          const chunks = Array.from(
+            chunkTextByPhrases(text, {
+              maxChunkLength,
+              enablePhrasePausing,
+            })
+          );
           const totalChunks = chunks.length;
 
           for (const chunk of chunks) {
@@ -67,10 +93,14 @@ export function useSpeech() {
             }
 
             try {
-              const wav = await tts.predict(chunk.text);
+              const wav = await tts.predict(chunk.text, {
+                noise_scale: noiseScale,
+                length_scale: lengthScale,
+                noise_width: noiseWidth,
+              });
               if (signal.aborted) break;
 
-              audioManagerRef.current.addAudioChunk(wav);
+              audioManagerRef.current.addAudioChunk(wav, chunk.isLast);
 
               if (!chunk.isLast && chunkDelay > 0) {
                 await new Promise((resolve) => setTimeout(resolve, chunkDelay));

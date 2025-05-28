@@ -23,3 +23,16 @@ export const VOICE_INFO: Record<PersianVoiceId, VoiceInfo> = {
     description: "صدای مردانه متوسط",
   },
 };
+
+export interface TTSSettings {
+  isStreaming: boolean;
+  chunkDelay: number;
+
+  noiseScale: number;
+  lengthScale: number;
+  noiseWidth: number;
+
+  sentencePause: number;
+  maxChunkLength: number;
+  enablePhrasePausing: boolean;
+}

@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 
 export const MODEL_SOURCES = {
   DEFAULT: "https://huggingface.co/diffusionstudio/piper-voices/resolve/main",
