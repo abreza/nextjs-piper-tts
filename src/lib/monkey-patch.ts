@@ -14,7 +14,7 @@ const originalOPFSFunctions: {
 } = {};
 
 export function patchGlobalFetch() {
-  if (originalFunctions.fetch || !window) return;
+  if (originalFunctions.fetch || typeof window === "undefined") return;
 
   originalFunctions.fetch = window.fetch.bind(window);
 
