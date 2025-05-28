@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { TtsSession, VoiceId, PATH_MAP } from "@mintplex-labs/piper-tts-web";
 import { initializePatches } from "./monkey-patch";
 
@@ -23,7 +22,10 @@ Object.assign(PATH_MAP, {
 
 const sessions: Record<string, TtsSession> = {};
 
-export async function getPersianTTS(voiceId: PersianVoiceId) {
+export async function getPersianTTS(
+  voiceId: PersianVoiceId,
+  onProgress?: (progress: string) => void
+) {
   if (sessions[voiceId]) {
     return sessions[voiceId];
   }
@@ -34,11 +36,13 @@ export async function getPersianTTS(voiceId: PersianVoiceId) {
     sessions[voiceId] = await TtsSession.create({
       voiceId: voiceId as VoiceId,
       progress: (progress) => {
-        console.log(
-          `Downloading ${progress.url} - ${Math.round(
-            (progress.loaded * 100) / progress.total
-          )}%`
-        );
+        const percentage = Math.round((progress.loaded * 100) / progress.total);
+        const fileName = progress.url.split("/").pop() || "مدل";
+        const progressText = `در حال دانلود ${fileName} - ${percentage}%`;
+
+        if (onProgress) {
+          onProgress(progressText);
+        }
       },
       logger: (text) => console.log(`TTS: ${text}`),
       wasmPaths: {
